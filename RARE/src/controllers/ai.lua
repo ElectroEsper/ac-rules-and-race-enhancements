@@ -126,10 +126,10 @@ function ai.pitNewTyres(raceRules, driver)
 			-- 		physics.teleportCarTo(driver.index, ac.SpawnSet.Pits)
 			-- 		physics.resetCarState(driver.index, 1)
 			-- 		driver.aiPitFix = true
-			-- 		physics.setAIPitStopRequest(driver.index, true)
+			-- 		physics.(driver.index, true)
 			-- 	end
 			-- else
-			-- 	physics.setAIPitStopRequest(driver.index, false)
+			-- 	physics.(driver.index, false)
 			-- end
 			-- elseif not driver.car.isInPit and driver.aiPitFix then
 			-- 	driver.aiPitFix = false
@@ -191,7 +191,9 @@ end
 
 function ai.qualifying(racecontrol, aiRules, driver)
 	if racecontrol.sim.sessionTimeLeft <= 3000 then
-		physics.setAIPitStopRequest(driver.index, false)
+		if ac.getPatchVersionCode() >= 2278 then
+			physics.setAIPitStopRequest(driver.index, false)
+		end
 	end
 
 	if driver.car.isInPitlane then
@@ -204,7 +206,9 @@ function ai.qualifying(racecontrol, aiRules, driver)
 				driver:setAITyreCompound(driver.tyreCompoundsAvailable[1])
 			end
 			driver:setFuelTankQuali()
-			physics.setAIPitStopRequest(driver.index, false)
+			if ac.getPatchVersionCode() >= 2278 then
+				physics.setAIPitStopRequest(driver.index, false)
+			end
 		end
 		driver.isOnInLap = false
 		driver.isOnFlyingLap = false
@@ -352,7 +356,9 @@ end
 
 function ai.qualifying(racecontrol, aiRules, driver)
 	if racecontrol.sim.sessionTimeLeft <= 3000 then
-		physics.setAIPitStopRequest(driver.index, false)
+		if ac.getPatchVersionCode() >= 2278 then
+				physics.setAIPitStopRequest(driver.index, false)
+			end		
 	end
 
 	if driver.car.isInPitlane then
