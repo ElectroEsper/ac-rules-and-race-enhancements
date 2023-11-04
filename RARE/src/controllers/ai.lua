@@ -11,6 +11,19 @@ local function avgTyreWearBelowLimit(driver)
 	return avgTyreWear > avgTyreLimit and true or false
 end
 
+local function lockingWheel(driver)
+	if
+		driver.car.wheels[0].angularSpeed < 1
+		or driver.car.wheels[1].angularSpeed < 1
+		or driver.car.wheels[2].angularSpeed < 1
+		or driver.car.wheels[3].angularSpeed < 1
+	then
+		return true
+	else
+		return false
+	end
+end
+
 ---@alias ai.QualifyLap
 ---| `ai.QualifyLap.OutLap` @Value: 0.
 ---| `ai.QualifyLap.FlyingLap` @Value: 1.
