@@ -14,6 +14,8 @@ local SAFETYCAR_MAXLAPS = 3
 local SAFETYCAR_COMPLETEDLAPS = 0
 local SAFETYCAR_REFERENCELAPS = -1
 
+local SAFETYCAR_INITIALIZED = false
+
 local SAFETYCAR_SPEED = 120
 local SAFETYCAR_CATCHINGSPEED = 200
 
@@ -35,6 +37,14 @@ local function sc.checkLaps(driver)
 end
 
 local function sc.controller(rc, driver)
+	if not SAFETYCAR_INITIALIZED then
+		if ac.getCarName(driver.index, false) == SAFETYCAR_CAR then
+			driver.isSafetyCar = true
+			SAFETYCAR_DRIVERINDEX = driver.index
+			SAFETYCAR_DRIVER = driver
+			SAFETYCAR_INITIALIZED = true
+		end
+	end
 	if SAFETYCAR_DEPLOYED then -- IF SAFETY CAR DEPLOYED
 		if driver.isSafetyCar then
 			SAFETYCAR_DRIVER = driver
