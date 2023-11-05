@@ -78,6 +78,8 @@ local function sc.controller(rc, driver)
 					SAFETYCAR_CALLEDIN = false
 					SAFETYCAR_COMINGIN = false
 					SAFETYCAR_LEADERBEHINDSC = false
+					SAFETYCAR_REFERENCELAPS = -1
+					SAFETYCAR_COMPLETEDLAPS = 0
 				end
 			end
 			
