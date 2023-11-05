@@ -183,6 +183,8 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 	if driver.crashed then
 		sc.SAFETYCAR_IMMOBILECARS = sc.SAFETYCAR_IMMOBILECARS + 1
 	end
+
+	sc.controller(racecontrol, driver)
 	
 	return driver
 end
