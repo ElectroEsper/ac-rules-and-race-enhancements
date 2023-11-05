@@ -90,6 +90,9 @@ local function sc.controller(rc, driver)
 					SAFETYCAR_LEADERBEHINDSC = false
 					SAFETYCAR_REFERENCELAPS = -1
 					SAFETYCAR_COMPLETEDLAPS = 0
+					if sim.raceFlagType == not ac.FlagType.None then
+						physics.overrideRacingFlag(ac.FlagType.None)
+					end
 				end
 			end
 			
