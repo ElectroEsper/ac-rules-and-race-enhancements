@@ -170,6 +170,14 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 		ai.controller(raceRules, aiRules, driver)
 	end
 
+	if sc.SAFETYCAR_ALLOWED then
+		driver.isSafetyCarAllowed = true
+	end
+
+	if driver.crashed then
+		sc.SAFETYCAR_IMMOBILECARS = sc.SAFETYCAR_IMMOBILECARS + 1
+	end
+	
 	return driver
 end
 
@@ -207,6 +215,23 @@ local function update(sim, drivers)
 	if not sim.isSessionStarted then
 		drsActivationLap = config.RULES.DRS_ACTIVATION_LAP
 		drsEnabledLap = drsEnabledLap
+	end
+	if sim.isSessionStarted and ac.SessionType.Race and not sc.SAFETYCAR_ALLOWED then
+		if sc.SAFETYCAR_LASTTIMECHECK >= sc.SAFETYCAR_ALLOWEDAFTER -- if session time started longer than cooldown period
+			sc.SAFETYCAR_ALLOWED = true
+		else
+			if sc.SAFETYCAR_FIRSTTIMECHECK == 0 then -- if time check never happened yet
+				sc.SAFETYCAR_FIRSTTIMECHECK = sim.timestamp					
+				sc.SAFETYCAR_LASTTIMECHECK = sc.SAFETYCAR_FIRSTTIMECHECK - sim.timestamp
+			else
+				sc.SAFETYCAR_LASTTIMECHECK = sc.SAFETYCAR_FIRSTTIMECHECK - sim.timestamp
+			end
+		end
+	end
+
+	if sc.SAFETYCAR_ALLOWED then
+		if sc.SAFETYCAR_IMMOBILECARS >= 2 and not sc.SAFETYCAR_DEPLOYED then
+			sc.SAFETYCAR_DEPLOYED = true
 	end
 
 	return readOnly({
