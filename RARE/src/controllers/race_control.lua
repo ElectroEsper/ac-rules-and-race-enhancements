@@ -232,6 +232,7 @@ local function update(sim, drivers)
 	if sc.SAFETYCAR_ALLOWED then
 		if sc.SAFETYCAR_IMMOBILECARS >= 2 and not sc.SAFETYCAR_DEPLOYED then
 			sc.SAFETYCAR_DEPLOYED = true
+		end
 	end
 
 	return readOnly({
