@@ -168,10 +168,9 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 	
 	if sc.SAFETYCAR_DEPLOYED then
 		driver.isSafetyCarDeployed = true
-		physics.overrideRacingFlag(ac.FlagType.Caution)
+		
 	else
 		driver.isSafetyCarDeployed = false
-		physics.overrideRacingFlag(ac.FlagType.Start)
 	end
 	
 	if driver.car.isAIControlled then
@@ -242,6 +241,10 @@ local function update(sim, drivers)
 	if sc.SAFETYCAR_ALLOWED then
 		if sc.SAFETYCAR_IMMOBILECARS >= 2 and not sc.SAFETYCAR_DEPLOYED then
 			sc.SAFETYCAR_DEPLOYED = true
+			if sim.raceFlagType == not ac.FlagType.Caution then
+				physics.overrideRacingFlag(ac.FlagType.Caution)
+			end
+		end
 		else -- resets counter
 			sc.SAFETYCAR_IMMOBILECARS = 0
 		end
