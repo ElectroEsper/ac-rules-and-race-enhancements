@@ -380,7 +380,7 @@ function Driver:update(dt)
 		self.aiInitialCompoundApplied = false
 	end
 	if self.isSafetyCarAllowed then
-		if not self.car.isInPit and self.car.speedKmh < 0.1 and not self.car.gas > 0 then
+		if not self.car.isInPit and self.car.speedKmh < 0.1 and not self.car.gas > 0 then -- if (not)inPit + stopped + no throttle
 			self.crashed = true
 		else
 			self.crashed = false
