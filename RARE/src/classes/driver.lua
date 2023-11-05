@@ -13,6 +13,7 @@ function Driver:initialize(carIndex)
 	self.name = ac.getDriverName(self.index)
 
 	self.isSafetyCar = false
+	self.crashed = false
 	
 	self.aiThrottleLimitBase = math.lerp(0.5, 1, 1 - ((1 - self.car.aiLevel) / 0.3))
 	self.aiThrottleLimit = 1
@@ -377,4 +378,9 @@ function Driver:update(dt)
 	elseif sim.isSessionStarted and self.aiInitialCompoundApplied then
 		self.aiInitialCompoundApplied = false
 	end
+
+	if not self.car.isInPit and self.car.speedKmh < 0.1 and not self.car.gas > 0 then
+		self.crashed = true
+	else
+		self.crashed = false
 end
