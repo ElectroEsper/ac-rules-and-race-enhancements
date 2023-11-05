@@ -379,9 +379,11 @@ function Driver:update(dt)
 	elseif sim.isSessionStarted and self.aiInitialCompoundApplied then
 		self.aiInitialCompoundApplied = false
 	end
-
-	if not self.car.isInPit and self.car.speedKmh < 0.1 and not self.car.gas > 0 then
-		self.crashed = true
-	else
-		self.crashed = false
+	if self.isSafetyCarAllowed then
+		if not self.car.isInPit and self.car.speedKmh < 0.1 and not self.car.gas > 0 then
+			self.crashed = true
+		else
+			self.crashed = false
+		end
+	end
 end
