@@ -5,6 +5,7 @@ local sc = {}
 local SAFETYCAR_ALLOWED = false
 local SAFETYCAR_ALLOWEDAFTER = 10 -- seconds
 local SAFETYCAR_LASTTIMECHECK = 0
+local SAFETYCAR_FIRSTTIMECHECK = 0
 local SAFETYCAR_DEPLOYED = false
 local SAFETYCAR_INPIT = true
 local SAFETYCAR_CALLEDIN = false
