@@ -19,11 +19,12 @@ local SAFETYCAR_CATCHINGSPEED = 200
 
 local SAFETYCAR_CAR = nil -- insert car type used for safety car
 local SAFETYCAR_DRIVERINDEX = -1 -- will get driver index
+local SAFETYCAR_DRIVER = -1
 
 local SAFETYCAR_IMMOBILECARS = 0
+local SAFETYCAR_LEADERBEHINDSC = false
 
-local function sc.getCarBehind(driver)
-end
+local function sc.getCarBehind(driver) end
 
 local function sc.checkLaps(driver)
 	local referenceLap = driver.lapsCompleted
@@ -36,7 +37,8 @@ end
 local function sc.controller(rc, driver)
 	if SAFETYCAR_DEPLOYED then -- IF SAFETY CAR DEPLOYED
 		if driver.isSafetyCar then
-			local carBehind = sc.getCarBehind(driver.index) -- get car behind safety car
+			SAFETYCAR_DRIVER = driver
+			
 			if driver.isInPitLane and not SAFETYCAR_CALLEDIN then
 				local fuelcons = ac.INIConfig.carData(self.index, "fuel_cons.ini"):get("FUEL_EVAL", "KM_PER_LITER", 0.0)
 				local fuelPerLap = (sim.trackLengthM / 1000) / (fuelcons - (fuelcons * 0.1))
@@ -49,7 +51,7 @@ local function sc.controller(rc, driver)
 				end
 			end
 			
-			if carBehind.returnRacePosition == 1 then -- if car behind safety car is 1st position
+			if SAFETYCAR_LEADERBEHINDSC then -- if car behind safety car is 1st position
 				physics.setAITopSpeed(driver.index, SAFETYCAR_SPEED) -- Safety car speeds up
 			else
 				if not driver.isInPitLane then
@@ -75,11 +77,16 @@ local function sc.controller(rc, driver)
 					SAFETYCAR_DEPLOYED = false
 					SAFETYCAR_CALLEDIN = false
 					SAFETYCAR_COMINGIN = false
+					SAFETYCAR_LEADERBEHINDSC = false
 				end
 			end
 			
 		else -- if not safety car
 			if driver.carAhead.isSafetyCar then -- if the car ahead is the safety car
+				if not SAFETYCAR_LEADERBEHINDSC and driver.returnRacePosition == 1 then
+					SAFETYCAR_LEADERBEHINDSC = true
+				end
+				
 				if driver.carAheadDelta > 1 then
 					physics.setAIThrottleLimit(driver.index, 0.8)
 					physics.setAITopSpeed(driver.index, SAFETYCAR_CATCHINGSPEED)
