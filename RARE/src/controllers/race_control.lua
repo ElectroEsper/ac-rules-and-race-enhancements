@@ -3,6 +3,7 @@ local connect = require("app/connection")
 local drs = require("src/controllers/drs")
 local vsc = require("src/controllers/vsc")
 local ai = require("src/controllers/ai")
+local sc = require("src/controllers/sc")
 local notifications = require("src/ui/windows/notification_window")
 require("src/helpers/helper")
 
