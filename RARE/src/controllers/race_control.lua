@@ -165,7 +165,13 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 	else
 		driver.isDrsAvailable = true
 	end
-
+	
+	if sc.SAFETYCAR_DEPLOYED then
+		driver.isSafetyCarDeployed = true
+	else
+		driver.isSafetyCarDeployed = false
+	end
+	
 	if driver.car.isAIControlled then
 		ai.controller(raceRules, aiRules, driver)
 	end
