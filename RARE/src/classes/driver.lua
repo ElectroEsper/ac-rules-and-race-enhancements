@@ -12,6 +12,8 @@ function Driver:initialize(carIndex)
 
 	self.name = ac.getDriverName(self.index)
 
+	self.isSafetyCar = false
+	
 	self.aiThrottleLimitBase = math.lerp(0.5, 1, 1 - ((1 - self.car.aiLevel) / 0.3))
 	self.aiThrottleLimit = 1
 	self.aiLevel = self.car.aiLevel
