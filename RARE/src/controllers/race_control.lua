@@ -168,8 +168,10 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 	
 	if sc.SAFETYCAR_DEPLOYED then
 		driver.isSafetyCarDeployed = true
+		physics.overrideRacingFlag(ac.FlagType.Caution)
 	else
 		driver.isSafetyCarDeployed = false
+		physics.overrideRacingFlag(ac.FlagType.Start)
 	end
 	
 	if driver.car.isAIControlled then
