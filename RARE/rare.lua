@@ -6,28 +6,27 @@ require("src/ui/windows/settings_window")
 require("src/ui/windows/notification_window")
 require("src/classes/audio")
 local racecontrol = require("src/controllers/race_control")
-local cc = require("src/controllers/compounds")
+local pirellilimits = require("src/controllers/pirelli_limits")
 
 INITIALIZED = false
 RARE_CONFIG = nil
+RESTARTED = false
 
 local sim = ac.getSim()
 local rc = nil
 local sfx = nil
+local delay = 0
 
 ac.onSessionStart(function(sessionIndex, restarted)
-	if restarted then
-		log("Session restarted")
-	end
+	delay = os.clock() + 1
 end)
 
 function script.update(dt)
-	sim = ac.getSim()
-
-	if sim.isOnlineRace then
-		ac.unloadApp()
+	if sim.sessionsCount > 1 and ac.getPatchVersionCode() == 2501 then
 		return
 	end
+
+	sim = ac.getSim()
 
 	local error = ac.getLastError()
 	if error then
@@ -35,18 +34,20 @@ function script.update(dt)
 		log(error)
 	end
 
-	if sim.isInMainMenu then
-		ac.setWindowOpen("settings_setup", true)
-	end
+	if not sim.isOnlineRace then
+		if sim.isInMainMenu then
+			ac.setWindowOpen("settings_setup", true)
+		end
 
-	if not ac.isWindowOpen("rare") then
-		return
-	elseif not physics.allowed() then
-		ui.toast(
-			ui.Icons.Warning,
-			"[RARE] INJECT THE APP! Inject the app by clicking the 'OFF' button in the RARE window while in the setup menu."
-		)
-		return
+		if not ac.isWindowOpen("rare") then
+			return
+		elseif not physics.allowed() then
+			ui.toast(
+				ui.Icons.Warning,
+				"[RARE] INJECT THE APP! Inject the app by clicking the 'OFF' button in the RARE window while in the setup menu."
+			)
+			return
+		end
 	end
 
 	if INITIALIZED then
@@ -54,13 +55,15 @@ function script.update(dt)
 			sfx = Audio()
 		end
 
-		if sim.isLive then
-			rc = racecontrol.getRaceControl(dt, sim)
-			sfx:update(sim)
-			cc.update(sim)
+		if sim.isLive and os.clock() > delay then
+			if not sim.isOnlineRace then
+				rc = racecontrol.getRaceControl(dt, sim)
+			end
+			sfx:update()
+			pirellilimits.update()
 		end
 	else
-		if sim.isInMainMenu or sim.isSessionStarted then
+		if sim.isInMainMenu then
 			INITIALIZED = initialize(sim)
 		end
 	end
@@ -72,8 +75,8 @@ function script.windowMain(dt)
 	if INITIALIZED then
 		ui.transparentWindow(
 			"notifications",
-			vec2(RARE_CONFIG.data.NOTIFICATIONS.X_POS, RARE_CONFIG.data.NOTIFICATIONS.Y_POS),
-			vec2(1200, 500),
+			vec2(RARE_CONFIG.data.NOTIFICATIONS.X_POS - 1742, RARE_CONFIG.data.NOTIFICATIONS.Y_POS - 204),
+			vec2(10000, 7500),
 			function()
 				notificationHandler(dt)
 			end
@@ -95,8 +98,12 @@ function script.windowDebug(dt)
 end
 
 function script.windowSettings()
+	if os.clock() < delay then
+		return
+	end
+
 	local scriptVersion = SCRIPT_VERSION .. " (" .. SCRIPT_VERSION_CODE .. ")"
 	ac.setWindowTitle("settings", SCRIPT_NAME .. " Settings | " .. scriptVersion)
 
-	settingsMenu(sim)
+	settingsMenu()
 end

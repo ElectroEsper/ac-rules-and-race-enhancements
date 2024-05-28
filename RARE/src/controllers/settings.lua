@@ -1,14 +1,20 @@
 require("src/classes/mapped_config")
 
+local sim = ac.getSim()
+
 local settings = {}
 
-function settings:load(sim)
-	local settingsDir = ac.dirname() .. "\\settings"
+function settings:load()
+	local settingsDir = ac.getFolder(ac.FolderID.ACApps) .. "\\lua\\" .. SCRIPT_SHORT_NAME .. "\\settings"
 	local settingsFile = settingsDir .. "\\settings.ini"
 	local settingsDefaultFile = settingsDir .. "\\default_settings.ini"
 
 	if not io.fileExists(settingsFile) then
 		io.copyFile(settingsDefaultFile, settingsFile)
+	end
+
+	if sim.isOnlineRace then
+		ac.INIConfig.onlineExtras()
 	end
 
 	RARE_CONFIG = MappedConfig(settingsFile, {
@@ -17,8 +23,7 @@ function settings:load(sim)
 			DRS_ACTIVATION_LAP = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 3,
 			DRS_GAP_DELTA = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1000,
 			DRS_WET_DISABLE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
-			RESTRICT_COMPOUNDS = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
-			CORRECT_COMPOUNDS_COLORS = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
+			PIRELLI_LIMITS = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
 			VSC_RULES = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
 			VSC_INIT_TIME = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 300,
 			VSC_DEPLOY_TIME = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 300,
@@ -28,16 +33,12 @@ function settings:load(sim)
 			TANK_FILL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
 		},
 		AI = {
-			AI_FORCE_PIT_TYRES = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
-			AI_AVG_TYRE_LIFE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 62,
-			AI_AVG_TYRE_LIFE_RANGE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 5,
-			AI_SINGLE_TYRE_LIFE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 45,
-			AI_SINGLE_TYRE_LIFE_RANGE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 5,
-			AI_ALTERNATE_LEVEL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
-			AI_RELATIVE_SCALING = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			AI_RELATIVE_LEVEL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 69,
-			AI_MGUK_CONTROL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
-			AI_TANK_FILL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
+			FORCE_PIT_TYRES = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
+			ALTERNATE_LEVEL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
+			RELATIVE_SCALING = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+			RELATIVE_LEVEL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 69,
+			MGUK_CONTROL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
+			TANK_FILL = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 1,
 		},
 		AUDIO = {
 			MASTER = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 100,

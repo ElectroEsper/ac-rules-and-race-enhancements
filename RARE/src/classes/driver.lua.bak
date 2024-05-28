@@ -135,7 +135,7 @@ function Driver:initialize(carIndex)
 	physics.setAIAggression(self.index, self.aiAggression)
 	
 	self.fuelPerLap = (sim.trackLengthM / 1000) / (self.fuelCons - (self.fuelCons * 0.1))
-	self.brakeTorque = ac.INIConfig.carData(self.index, "brakes.ini"):get("DATA", "MAX_TORQUE", 0) - (ac.INIConfig.carData(self.index, "brakes.ini"):get("DATA", "MAX_TORQUE", 0)*2)
+	self.brakeTorque = ac.INIConfig.carData(self.index, "brakes.ini"):get("DATA", "MAX_TORQUE", 0)
 	
 	log("[" .. self.index .. "] " .. self.name .. " [" .. self.fuelCons .. "/" .. self.fuelPerLap .. "] initialized")
 	

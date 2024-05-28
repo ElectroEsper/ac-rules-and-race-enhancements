@@ -3,6 +3,7 @@ local connect = require("app/connection")
 local drs = require("src/controllers/drs")
 local vsc = require("src/controllers/vsc")
 local ai = require("src/controllers/ai")
+local sc = require("src/controllers/sc")
 local notifications = require("src/ui/windows/notification_window")
 require("src/helpers/helper")
 
@@ -102,16 +103,25 @@ end
 --- @param config RARE_CONFIG.data
 --- @param driver Driver
 local function qualifySession(racecontrol, config, driver)
-	if racecontrol.sim.sessionTimeLeft <= 0 then
-		physics.setAIPitStopRequest(driver.index, false)
-		ac.log("sessionover")
+	local raceRules = config.RULES
+	local aiRules = config.AI
+
+	if driver.car.isAIControlled then
+		ai.qualifying(racecontrol, aiRules, driver)
 	end
 end
 
 --- Race Control for practice sessions
 --- @param config RARE_CONFIG.data
 --- @param driver Driver
-local function practiceSession(racecontrol, config, driver) end
+local function practiceSession(racecontrol, config, driver)
+	local raceRules = config.RULES
+	local aiRules = config.AI
+
+	if driver.car.isAIControlled then
+		ai.practice(racecontrol, driver)
+	end
+end
 
 --- Race Control for race sessions
 --- @param config RARE_CONFIG.data
@@ -155,11 +165,27 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 	else
 		driver.isDrsAvailable = true
 	end
-
+	
+	if sc.isDeployed() then
+		driver.isSafetyCarDeployed = true	
+	else
+		driver.isSafetyCarDeployed = false
+	end
+	
 	if driver.car.isAIControlled then
 		ai.controller(raceRules, aiRules, driver)
 	end
 
+	if sc.allowed() then
+		driver.isSafetyCarAllowed = true
+	end
+
+	if driver.crashed then
+		sc.crashedAdd(1)
+	end
+
+	sc.controller(racecontrol, driver)
+	
 	return driver
 end
 
@@ -174,7 +200,7 @@ local function runSession(lastUpdate, racecontrol, sessionType, driver)
 		raceSession(lastUpdate, racecontrol, config, driver)
 	elseif sessionType == ac.SessionType.Qualify then
 		qualifySession(racecontrol, config, driver)
-	elseif sessionType == ac.SessionType.Practice then
+	elseif sessionType == ac.SessionType.Practice or sessionType == ac.SessionType.Hotlap then
 		practiceSession(racecontrol, config, driver)
 	end
 
@@ -197,6 +223,35 @@ local function update(sim, drivers)
 	if not sim.isSessionStarted then
 		drsActivationLap = config.RULES.DRS_ACTIVATION_LAP
 		drsEnabledLap = drsEnabledLap
+	end
+	if sim.isSessionStarted and ac.SessionType.Race and not sc.allowed() then
+		--local lastTimeCheck = sc.SAFETYCAR_LASTTIMECHECK
+		--local allowedAfter = sc.SAFETYCAR_ALLOWEDAFTER
+		if sc.allowedCheck() then -- if session time started longer than cooldown period
+			sc.allowedToggle(true)
+		else
+			sc.allowedUpdate()
+		end
+	end
+	if sc.allowed() then
+		--ac.log("Updating laps")
+		sc.lapsUpdate(getLeaderCompletedLaps(sim))
+	end
+
+
+	if sc.allowed() then
+		if sc.crashedCheck() and not sc.isDeployed() then
+			sc.deployToggle(true)
+			
+			if sim.raceFlagType == not ac.FlagType.Caution then
+				physics.overrideRacingFlag(ac.FlagType.Caution)
+			end
+		else -- resets counter
+			sc.crashedReset()
+			if sim.raceFlagType == not ac.FlagType.None then
+				physics.overrideRacingFlag(ac.FlagType.None)
+			end
+		end
 	end
 
 	return readOnly({
@@ -223,10 +278,10 @@ function rc.getRaceControl(dt, sim)
 		local driver = drivers[i]
 		driver:update(dt, sim)
 		DRIVERS[i] = runSession(lastUpdate, racecontrol, sim.raceSessionType, driver)
-		connect.storeDriverData(driver)
+		-- connect.storeDriverData(driver)
 	end
 
-	connect.storeRaceControlData(racecontrol)
+	-- connect.storeRaceControlData(racecontrol)
 
 	return racecontrol
 end

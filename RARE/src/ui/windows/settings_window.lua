@@ -16,16 +16,14 @@ local presets = {
 		DRS_ACTIVATION_LAP = 3,
 		DRS_GAP_DELTA = 1000,
 		DRS_WET_DISABLE = 1,
-		RESTRICT_COMPOUNDS = 1,
-		CORRECT_COMPOUNDS_COLORS = 1,
+		PIRELLI_LIMITS = 1,
 		VSC_RULES = 0,
 		VSC_INIT_TIME = 300,
 		VSC_DEPLOY_TIME = 300,
 		RACE_REFUELING = 0,
 	},
 	["GT"] = {
-		RESTRICT_COMPOUNDS = 0,
-		CORRECT_COMPOUNDS_COLORS = 0,
+		PIRELLI_LIMITS = 0,
 		VSC_RULES = 0,
 		VSC_INIT_TIME = 300,
 		VSC_DEPLOY_TIME = 300,
@@ -57,8 +55,7 @@ local setPreset = {
 		RARE_CONFIG:set("RULES", "DRS_GAP_DELTA", 1000, false)
 		RARE_CONFIG:set("RULES", "DRS_WET_DISABLE", 1, false)
 		RARE_CONFIG:set("RULES", "RACE_REFUELING", 0, false)
-		RARE_CONFIG:set("RULES", "RESTRICT_COMPOUNDS", 1, false)
-		RARE_CONFIG:set("RULES", "CORRECT_COMPOUNDS_COLORS", 1, false)
+		RARE_CONFIG:set("RULES", "PIRELLI_LIMITS", 1, false)
 	end,
 	["GT"] = function()
 		RARE_CONFIG:set("RULES", "DRS_RULES", 0, false)
@@ -66,8 +63,7 @@ local setPreset = {
 		RARE_CONFIG:set("RULES", "DRS_GAP_DELTA", 0, false)
 		RARE_CONFIG:set("RULES", "DRS_WET_DISABLE", 0, false)
 		RARE_CONFIG:set("RULES", "RACE_REFUELING", 1, false)
-		RARE_CONFIG:set("RULES", "RESTRICT_COMPOUNDS", 0, false)
-		RARE_CONFIG:set("RULES", "CORRECT_COMPOUNDS_COLORS", 0, false)
+		RARE_CONFIG:set("RULES", "PIRELLI_LIMITS", 0, false)
 	end,
 }
 
@@ -77,13 +73,6 @@ local function rulesTab()
 	ui.tabItem("RULES", ui.TabItemFlags.None, function()
 		ui.newLine(1)
 
-		if sim.raceSessionType == 3 then
-			if not sim.isInMainMenu or sim.isSessionStarted then
-				ui.text("Can only edit RULES settings while\nin the setup menu before a race session has started.")
-				return
-			end
-		end
-
 		selectedPreset = "CUSTOM"
 		for preset in pairs(presets) do
 			if table.match(presets[preset], RARE_CONFIG.data.RULES) then
@@ -91,7 +80,7 @@ local function rulesTab()
 			end
 		end
 
-		ui.header("RACE SERIES: ")
+		ui.header("RACE SERIES")
 		ui.setNextItemWidth(ui.windowWidth() - 75)
 		local changed = false
 		ui.combo("##presetNames", selectedPreset, ui.ComboFlags.None, function()
@@ -174,7 +163,7 @@ local function rulesTab()
 		end
 		ui.newLine(1)
 
-		ui.header("FUEL")
+		ui.header("RESTRICTIONS")
 		controls.slider(
 			RARE_CONFIG,
 			"RULES",
@@ -189,41 +178,468 @@ local function rulesTab()
 				return math.round(v, 0)
 			end
 		)
-
-		ui.newLine(1)
-
-		ui.header("TYRE COMPOUNDS")
 		controls.slider(
 			RARE_CONFIG,
 			"RULES",
-			"RESTRICT_COMPOUNDS",
+			"PIRELLI_LIMITS",
 			0,
 			1,
 			1,
 			true,
-			RARE_CONFIG.data.RULES.RESTRICT_COMPOUNDS == 1 and "Restrict Compound Choice: ENABLED"
-				or "Restrict Compound Choice: DISABLED",
-			"Enable or disable restricting compound choice to user defined set\nRequires configration in order to work",
-			function(v)
-				return math.round(v, 0)
-			end
-		)
-		controls.slider(
-			RARE_CONFIG,
-			"RULES",
-			"CORRECT_COMPOUNDS_COLORS",
-			0,
-			1,
-			1,
-			true,
-			RARE_CONFIG.data.RULES.CORRECT_COMPOUNDS_COLORS == 1 and "Soft-Medium-Hard Compound Colors: ENABLED"
-				or "Soft-Medium-Hard Compound Colors: DISABLED",
-			"Enable or disable changing the compound colors to reflect the Hard (white) Medium (yellow) and Soft (red) compound\nRequires configration in order to work",
+			RARE_CONFIG.data.RULES.PIRELLI_LIMITS == 1 and "Enforce Pirelli Limits: ENABLED"
+				or "Enforce Pirelli Limits: DISABLED",
+			"Enable or disable restricting compound choice, starting pressures, and EOS camber limits\nRequires configration in the 'config' tab in order to work",
 			function(v)
 				return math.round(v, 0)
 			end
 		)
 		ui.newLine(1)
+	end)
+end
+
+local compoundConfigDir = ac.dirname() .. "\\configs"
+local uniqueCarIDs = {}
+
+for i = 0, sim.carsCount - 1 do
+	local carID = ac.getCarID(i)
+	if not table.contains(uniqueCarIDs, carID) then
+		table.insert(uniqueCarIDs, carID)
+	end
+end
+
+local selectedCarID = uniqueCarIDs[1]
+local selectedCarIDConfigFile, selectedCarConfigINI, selectedCarConfig, selectedCarExtConfigINI
+
+local function updateCarConfig()
+	selectedCarIDConfigFile = compoundConfigDir .. "\\" .. selectedCarID .. ".ini"
+	selectedCarConfigINI = ac.INIConfig.load(selectedCarIDConfigFile, ac.INIFormat.Default)
+	selectedCarExtConfigINI = ac.INIConfig.load(
+		ac.getFolder(ac.FolderID.ContentCars) .. "/" .. ac.getCarID(0) .. "/extension/ext_config.ini",
+		ac.INIFormat.ExtendedIncludes
+	)
+	selectedCarConfig = MappedConfig(selectedCarIDConfigFile, {
+		COMPOUND_DEFAULTS = {
+			SOFT_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+			MEDIUM_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+			HARD_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+			INTER_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+			WET_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
+		},
+		COMPOUND_TEXTURES = {
+			COMPOUND_TARGET_MATERIAL = (ac.INIConfig.OptionalString == nil) and ac.INIConfig.OptionalString or "",
+			SOFT_COMPOUND_TEXTURE = (ac.INIConfig.OptionalString == nil) and ac.INIConfig.OptionalString or "",
+			MEDIUM_COMPOUND_TEXTURE = (ac.INIConfig.OptionalString == nil) and ac.INIConfig.OptionalString or "",
+			HARD_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
+			INTER_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
+			WET_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
+		},
+	})
+end
+
+updateCarConfig()
+
+if not io.fileExists(selectedCarIDConfigFile) then
+	io.save(
+		selectedCarIDConfigFile,
+		[[
+[AI]
+AVG_TYRE_LIFE=62
+AVG_TYRE_LIFE_RANGE=5
+SINGLE_TYRE_LIFE=45
+SINGLE_TYRE_LIFE_RANGE=5
+
+[COMPOUND_DEFAULTS]
+SOFT_COMPOUND=1
+MEDIUM_COMPOUND=2
+HARD_COMPOUND=3
+INTER_COMPOUND=5
+WET_COMPOUND=6
+
+[COMPOUND_TEXTURES]
+COMPOUND_TARGET_MATERIAL=
+SOFT_COMPOUND_TEXTURE=
+MEDIUM_COMPOUND_TEXTURE=
+HARD_COMPOUND_TEXTURE=
+INTER_COMPOUND_TEXTURE=
+WET_COMPOUND_TEXTURE=
+]]
+	)
+end
+
+local aiKeys = {
+	"AVG_TYRE_LIFE",
+	"AVG_TYRE_LIFE_RANGE",
+	"SINGLE_TYRE_LIFE",
+	"SINGLE_TYRE_LIFE_RANGE",
+}
+
+local trackCompoundKeys = {
+	"SOFT_COMPOUND",
+	"MEDIUM_COMPOUND",
+	"HARD_COMPOUND",
+}
+
+local trackEOSCamberKeys = {
+	"EOS_CAMBER_LIMIT_FRONT",
+	"EOS_CAMBER_LIMIT_REAR",
+}
+
+local trackMinStartingPressureKeys = {
+	"SLICKS_MIN_HOT_START_PSI_FRONT",
+	"SLICKS_MIN_HOT_START_PSI_REAR",
+	"INTERS_MIN_HOT_START_PSI_FRONT",
+	"INTERS_MIN_HOT_START_PSI_REAR",
+	"WETS_MIN_HOT_START_PSI_FRONT",
+	"WETS_MIN_HOT_START_PSI_REAR",
+}
+
+local trackMinStartingPressureDefaults = {
+	22,
+	20,
+	23,
+	21,
+	20,
+	18,
+}
+
+local trackTyreBlanketTempKeys = {
+	"SLICKS_TYRE_BLANKET_TEMP",
+	"INTERS_TYRE_BLANKET_TEMP",
+	"WETS_TYRE_BLANKET_TEMP",
+}
+
+local compoundDefaultsKeys = {
+	"SOFT_COMPOUND",
+	"MEDIUM_COMPOUND",
+	"HARD_COMPOUND",
+	"INTER_COMPOUND",
+	"WET_COMPOUND",
+}
+
+local compoundTexturesKeys = {
+	"COMPOUND_TARGET_MATERIAL",
+	"SOFT_COMPOUND_TEXTURE",
+	"MEDIUM_COMPOUND_TEXTURE",
+	"HARD_COMPOUND_TEXTURE",
+	"INTER_COMPOUND_TEXTURE",
+	"WET_COMPOUND_TEXTURE",
+}
+
+local function compoundsTab()
+	ui.tabItem("PIRELLI LIMITS", ui.TabItemFlags.None, function()
+		ui.childWindow("compoundTabWindow", vec2(451, 491), function()
+			if sim.raceSessionType == 3 then
+				if not sim.isInMainMenu or sim.isSessionStarted then
+					ui.newLine(1)
+
+					ui.text("Can only edit CONFIGS while\nin the setup menu before a race session has started.")
+					return
+				end
+			end
+
+			ui.thinScrollbarBegin()
+
+			ui.newLine(1)
+			-- ui.pushFont(ui.Font.Small)
+			-- ui.header("CONFIG CAR: ")
+
+			-- ui.setNextItemWidth(ui.windowWidth() - 75)
+			-- local changed = false
+			-- ui.combo("##carIDs", selectedCarID, ui.ComboFlags.None, function()
+			-- 	for i = 1, #uniqueCarIDs do
+			-- 		if ui.selectable(uniqueCarIDs[i]) then
+			-- 			selectedCarID, changed = uniqueCarIDs[i], true
+			-- 		end
+			-- 	end
+			-- end)
+			-- if changed then
+			-- 	updateCarConfig()
+			-- end
+			-- ui.popFont()
+			-- ui.newLine(1)
+
+			if ui.textHyperlink("FIA Documents", rgbm.colors.red) then
+				os.openURL(
+					"https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2023-2042"
+				)
+				-- os.openURL("https://www.google.com/search?q=pirelli+press+" .. ac.getTrackName())
+			end
+			ui.text("Look under " .. ac.getTrackName() .. " and find the Pirelli Preview pdf")
+
+			ui.newLine(1)
+
+			ui.header("CURRENT TRACK MINIMUM HOT STARTING PRESSURE")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+
+			for i = 1, #trackMinStartingPressureKeys do
+				local key = trackMinStartingPressureKeys[i]
+				local prefix = ""
+				ui.text(prefix .. key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				local value, changed = ui.slider(
+					"##track" .. key .. "label",
+					selectedCarConfigINI:get(
+						ac.getTrackID(),
+						trackMinStartingPressureKeys[i],
+						trackMinStartingPressureDefaults[i]
+					),
+					15,
+					30,
+					"%.1f psi",
+					1
+				)
+
+				if changed then
+					selectedCarConfigINI:setAndSave(
+						ac.getTrackID(),
+						trackMinStartingPressureKeys[i],
+						math.floor(value / 0.5 + 0.5) * 0.5,
+						false
+					)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updatePirelliLimitsConfig()
+					end
+				end
+			end
+			ui.popFont()
+			ui.newLine(1)
+
+			ui.header("CURRENT TRACK TYRE BLANKET TEMPERATURES")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+
+			for i = 1, #trackTyreBlanketTempKeys do
+				local key = trackTyreBlanketTempKeys[i]
+				local prefix = ""
+				ui.text(prefix .. key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				local defaultTyreBlanketTemp = 70
+
+				if i == 2 then
+					defaultTyreBlanketTemp = 60
+				elseif i == 3 then
+					defaultTyreBlanketTemp = 40
+				end
+
+				local value, changed = ui.slider(
+					"##track" .. key .. "label",
+					selectedCarConfigINI:get(ac.getTrackID(), trackTyreBlanketTempKeys[i], defaultTyreBlanketTemp),
+					0,
+					100,
+					"%.0f °C",
+					1
+				)
+
+				if changed then
+					selectedCarConfigINI:setAndSave(
+						ac.getTrackID(),
+						trackTyreBlanketTempKeys[i],
+						math.floor(value / 5) * 5,
+						false
+					)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updatePirelliLimitsConfig()
+					end
+				end
+			end
+			ui.popFont()
+			ui.newLine(1)
+
+			ui.header("CURRENT TRACK EOS CAMBER LIMITS")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+
+			for i = 1, #trackEOSCamberKeys do
+				local key = trackEOSCamberKeys[i]
+				local prefix = ""
+				ui.text(prefix .. key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				-- local value, changed = ui.inputText(
+				-- 	"##track" .. key .. "label",
+				-- 	selectedCarConfigINI:get(ac.getTrackID(), key, selectedCarConfig.data.COMPOUND_DEFAULTS[key]),
+				-- 	ui.InputTextFlags.None
+				-- )
+
+				local defaultEOSCamberLimit = -3.25
+				if i == 2 then
+					defaultEOSCamberLimit = -2
+				end
+
+				local value, changed = ui.slider(
+					"##track" .. key .. "label",
+					selectedCarConfigINI:get(ac.getTrackID(), trackEOSCamberKeys[i], defaultEOSCamberLimit),
+					-5,
+					0,
+					"%.2f °",
+					1
+				)
+
+				if changed then
+					selectedCarConfigINI:setAndSave(
+						ac.getTrackID(),
+						trackEOSCamberKeys[i],
+						math.floor(value / 0.05 + 0.05) * 0.05,
+						false
+					)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updatePirelliLimitsConfig()
+					end
+				end
+			end
+			ui.popFont()
+			ui.newLine(1)
+
+			ui.header("CURRENT TRACK COMPOUNDS")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+
+			for i = 1, #trackCompoundKeys do
+				local key = trackCompoundKeys[i]
+				local prefix = ""
+				ui.text(prefix .. key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				-- local value, changed = ui.inputText(
+				-- 	"##track" .. key .. "label",
+				-- 	selectedCarConfigINI:get(ac.getTrackID(), key, selectedCarConfig.data.COMPOUND_DEFAULTS[key]),
+				-- 	ui.InputTextFlags.None
+				-- )
+
+				local value, changed =
+					selectedCarConfigINI:get(ac.getTrackID(), key, selectedCarConfig.data.COMPOUND_DEFAULTS[key]), false
+				ui.combo("##track" .. key .. "label", ac.getTyresName(0, value), ui.ComboFlags.None, function()
+					for i = 0, 10 do
+						local tyresName = ac.getTyresName(0, i)
+						if tyresName ~= "" then
+							if ui.selectable(tyresName) then
+								value, changed = i, true
+							end
+						end
+					end
+				end)
+
+				if changed then
+					selectedCarConfigINI:setAndSave(ac.getTrackID(), key, value, false)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updateTyreCompoundConfig()
+						DRIVERS[i]:setAITyreCompound()
+					end
+				end
+			end
+			ui.popFont()
+			ui.newLine(1)
+
+			ui.header("COMPOUND DEFAULTS")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+
+			for i = 1, #compoundDefaultsKeys do
+				local key = compoundDefaultsKeys[i]
+				local prefix = ""
+				if key == "SOFT_COMPOUND" or key == "MEDIUM_COMPOUND" or key == "HARD_COMPOUND" then
+					prefix = "DEFAULT "
+				end
+				ui.text(prefix .. key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				local value, changed = selectedCarConfig.data.COMPOUND_DEFAULTS[key], false
+				ui.combo("##" .. key .. "label", ac.getTyresName(0, value), ui.ComboFlags.None, function()
+					for i = 0, 10 do
+						local tyresName = ac.getTyresName(0, i)
+						if tyresName ~= "" then
+							if ui.selectable(tyresName) then
+								value, changed = i, true
+							end
+						end
+					end
+				end)
+
+				if changed then
+					selectedCarConfig:set("COMPOUND_DEFAULTS", key, value, false)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updateTyreCompoundConfig()
+						DRIVERS[i]:setAITyreCompound()
+					end
+				end
+			end
+			ui.popFont()
+			ui.newLine(1)
+
+			ui.header("COMPOUND TEXTURES")
+			ui.pushFont(ui.Font.Small)
+			ui.newLine(1)
+			for i = 1, #compoundTexturesKeys do
+				local key = compoundTexturesKeys[i]
+				ui.text(key:gsub("_", " ") .. ":")
+				ui.sameLine(190)
+				ui.setNextItemWidth(206)
+
+				local value, changed
+				if i == 1 then
+					value, changed =
+						selectedCarConfigINI:get(
+							"COMPOUND_TEXTURES",
+							key,
+							selectedCarConfig.data.COMPOUND_TEXTURES[key]
+						),
+						false
+					value, changed = ui.inputText("##" .. key .. "label", value, ui.InputTextFlags.None)
+				else
+					local tyreTextures = {}
+
+					for i = 0, 10 do
+						local tyresName = ac.getTyresName(0, i)
+
+						if tyresName ~= "" then
+							tyreTextures[i] = selectedCarExtConfigINI
+								:get("TYRES_FX_CUSTOMTEXTURE_" .. tyresName, "TXDIFFUSE", "")
+								:sub(1, -5)
+						end
+					end
+
+					tyreTextures = table.distinct(tyreTextures)
+
+					value, changed =
+						selectedCarConfigINI:get(
+							"COMPOUND_TEXTURES",
+							key,
+							selectedCarConfig.data.COMPOUND_TEXTURES[key]
+						),
+						false
+					ui.combo("##" .. key .. "label", value, ui.ComboFlags.None, function()
+						for i in ipairs(tyreTextures) do
+							local tyresName = ac.getTyresName(0, i)
+							if tyresName ~= "" then
+								if ui.selectable(tyreTextures[i]) then
+									value, changed = tyreTextures[i], true
+								end
+							end
+						end
+					end)
+				end
+
+				if changed then
+					selectedCarConfigINI:setAndSave("COMPOUND_TEXTURES", key, value, false)
+					for i = 0, #DRIVERS do
+						DRIVERS[i]:updateTyreCompoundConfig()
+						DRIVERS[i]:setAITyreCompound()
+					end
+				end
+			end
+			ui.newLine(1)
+			ui.popFont()
+
+			ui.thinScrollbarEnd()
+		end)
 	end)
 end
 
@@ -243,12 +659,12 @@ local function aiTab()
 		controls.slider(
 			RARE_CONFIG,
 			"AI",
-			"AI_ALTERNATE_LEVEL",
+			"ALTERNATE_LEVEL",
 			0,
 			1,
 			1,
 			true,
-			RARE_CONFIG.data.AI.AI_ALTERNATE_LEVEL == 1 and "Alternate AI Strength: ENABLED"
+			RARE_CONFIG.data.AI.ALTERNATE_LEVEL == 1 and "Alternate AI Strength: ENABLED"
 				or "Alternate AI Strength: DISABLED",
 			"Changes the default AI level to be more competitive",
 			function(v)
@@ -261,12 +677,12 @@ local function aiTab()
 		controls.slider(
 			RARE_CONFIG,
 			"AI",
-			"AI_RELATIVE_SCALING",
+			"RELATIVE_SCALING",
 			0,
 			1,
 			1,
 			true,
-			RARE_CONFIG.data.AI.AI_RELATIVE_SCALING == 1 and "Relative AI Scaling: ENABLED"
+			RARE_CONFIG.data.AI.RELATIVE_SCALING == 1 and "Relative AI Scaling: ENABLED"
 				or "Relative AI Scaling: DISABLED",
 			"Enables relative AI scaling",
 			function(v)
@@ -277,12 +693,12 @@ local function aiTab()
 		controls.slider(
 			RARE_CONFIG,
 			"AI",
-			"AI_RELATIVE_LEVEL",
+			"RELATIVE_LEVEL",
 			70,
 			100,
 			1,
 			true,
-			RARE_CONFIG.data.AI.AI_RELATIVE_LEVEL == 1 and "Relative AI Level %.0f%%" or "Relative AI Level %.0f%%",
+			RARE_CONFIG.data.AI.RELATIVE_LEVEL == 1 and "Relative AI Level %.0f%%" or "Relative AI Level %.0f%%",
 			"Relative AI level, for easier scaling with BoP'd grids",
 			function(v)
 				for i = 0, #DRIVERS do
@@ -299,126 +715,23 @@ local function aiTab()
 		controls.slider(
 			RARE_CONFIG,
 			"AI",
-			"AI_FORCE_PIT_TYRES",
+			"FORCE_PIT_TYRES",
 			0,
 			1,
 			1,
 			true,
-			RARE_CONFIG.data.AI.AI_FORCE_PIT_TYRES == 1 and "Pit When Tyres Worn: ENABLED"
+			RARE_CONFIG.data.AI.FORCE_PIT_TYRES == 1 and "Pit When Tyres Worn: ENABLED"
 				or "Pit When Tyres Worn: DISABLED",
 			"Force AI to pit for new tyres when their average tyre life is below AI TYRE LIFE",
 			function(v)
 				return math.round(v, 0)
 			end
 		)
-
 		ui.newLine(1)
 
 		local driver = DRIVERS[sim.focusedCar]
-		if RARE_CONFIG.data.AI.AI_FORCE_PIT_TYRES == 1 then
-			controls.slider(
-				RARE_CONFIG,
-				"AI",
-				"AI_AVG_TYRE_LIFE",
-				0,
-				100,
-				1,
-				false,
-				"Pit Below Avg Tyre Life: %.2f%%",
-				"AI will pit after average tyre life % is below this value",
-				function(v)
-					RARE_CONFIG.data.AI.AI_SINGLE_TYRE_LIFE =
-						math.clamp(RARE_CONFIG.data.AI.AI_SINGLE_TYRE_LIFE, 0, math.floor(v / 0.5 + 0.5) * 0.5)
-					return math.floor(v / 0.5 + 0.5) * 0.5
-				end
-			)
 
-			controls.slider(
-				RARE_CONFIG,
-				"AI",
-				"AI_AVG_TYRE_LIFE_RANGE",
-				0,
-				15,
-				1,
-				false,
-				"Variability: %.2f%%",
-				"AI will pit if one tyre's life % is below this value",
-				function(v)
-					return math.floor(v / 0.5 + 0.5) * 0.5
-				end
-			)
-
-			ui.newLine(1)
-
-			controls.slider(
-				RARE_CONFIG,
-				"AI",
-				"AI_SINGLE_TYRE_LIFE",
-				0,
-				RARE_CONFIG.data.AI.AI_AVG_TYRE_LIFE,
-				1,
-				false,
-				"Pit Below Single Tyre Life: %.2f%%",
-				"AI will pit if one tyre's life % is below this value",
-				function(v)
-					return math.floor(v / 0.5 + 0.5) * 0.5
-				end
-			)
-
-			controls.slider(
-				RARE_CONFIG,
-				"AI",
-				"AI_SINGLE_TYRE_LIFE_RANGE",
-				0,
-				15,
-				1,
-				false,
-				"Variability: %.2f%%",
-				"AI will pit if one tyre's life % is below this value",
-				function(v)
-					return math.floor(v / 0.5 + 0.5) * 0.5
-				end
-			)
-
-			ui.newLine(1)
-
-			ui.header("FUEL")
-			controls.slider(
-				RARE_CONFIG,
-				"AI",
-				"AI_TANK_FILL",
-				0,
-				1,
-				1,
-				true,
-				RARE_CONFIG.data.AI.AI_TANK_FILL == 1 and "Fill Fuel Tank: ENABLED" or "Fill Fuel Tank: DISABLED",
-				"Enable or disable refueling AI car's fuel tank with enough fuel for the whole race, given the capacity is high enough",
-				function(v)
-					return math.round(v, 0)
-				end
-			)
-
-			if ac.getPatchVersionCode() >= 2278 then
-				ui.newLine(1)
-
-				ui.header("MISC")
-				controls.slider(
-					RARE_CONFIG,
-					"AI",
-					"AI_MGUK_CONTROL",
-					0,
-					1,
-					1,
-					true,
-					RARE_CONFIG.data.AI.AI_MGUK_CONTROL == 1 and "AI Dynamic MGUK: ENABLED"
-						or "AI Dynamic MGUK: DISABLED",
-					"Enables AI to make MGUK changes during the race",
-					function(v)
-						return math.round(v, 0)
-					end
-				)
-			end
-
+		if RARE_CONFIG.data.AI.FORCE_PIT_TYRES == 1 then
 			if not sim.isInMainMenu and ac.getPatchVersionCode() >= 2278 then
 				if driver.car.isAIControlled then
 					local buttonFlags = ui.ButtonFlags.None
@@ -461,6 +774,36 @@ local function aiTab()
 			end
 		end
 
+		ui.header("PITSTOPS")
+		ui.pushFont(ui.Font.Small)
+		ui.newLine(1)
+
+		for i = 1, #aiKeys do
+			local key = aiKeys[i]
+			local prefix = "PIT AT "
+			ui.text(prefix .. key:gsub("_", " ") .. ":")
+			ui.sameLine(190)
+			ui.setNextItemWidth(206)
+
+			-- local value, changed = ui.inputText(
+			-- 	"##track" .. key .. "label",
+			-- 	selectedCarConfigINI:get("AI", key, 0),
+			-- 	ui.InputTextFlags.None
+			-- )
+
+			local value, changed =
+				ui.slider("##track" .. key .. "label", selectedCarConfigINI:get("AI", key, 0), 0, 100, "%.0f %%", 1)
+
+			if changed then
+				selectedCarConfigINI:setAndSave("AI", key, value, false)
+				for i = 0, #DRIVERS do
+					DRIVERS[i]:updateTyreCompoundConfig()
+					DRIVERS[i]:setAITyreCompound()
+				end
+			end
+		end
+
+		ui.popFont()
 		ui.newLine(1)
 	end)
 end
@@ -634,175 +977,10 @@ local function uiTab()
 	end)
 end
 
-local compoundConfigDir = ac.dirname() .. "\\configs"
-local uniqueCarIDs = {}
-
-for i = 0, sim.carsCount - 1 do
-	local carID = ac.getCarID(i)
-	if not table.contains(uniqueCarIDs, carID) then
-		table.insert(uniqueCarIDs, carID)
-	end
-end
-
-local selectedCarID = uniqueCarIDs[1]
-
-local selectedCarIDConfigFile, selectedCarConfigINI, selectedCarConfig
-
-local function updateCarConfig()
-	selectedCarIDConfigFile = compoundConfigDir .. "\\" .. selectedCarID .. ".ini"
-	selectedCarConfigINI = ac.INIConfig.load(selectedCarIDConfigFile, ac.INIFormat.Default)
-	selectedCarConfig = MappedConfig(selectedCarIDConfigFile, {
-		COMPOUNDS = {
-			COMPOUND_TARGET_MATERIAL = (ac.INIConfig.OptionalString == nil) and ac.INIConfig.OptionalString or "",
-			SOFT_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			MEDIUM_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			HARD_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			INTER_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			WET_COMPOUND = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or 0,
-			SOFT_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
-			MEDIUM_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
-			HARD_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
-			INTER_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
-			WET_COMPOUND_TEXTURE = (ac.INIConfig.OptionalNumber == nil) and ac.INIConfig.OptionalNumber or "",
-		},
-	})
-end
-
-updateCarConfig()
-
-if not io.fileExists(selectedCarIDConfigFile) then
-	io.save(
-		selectedCarIDConfigFile,
-		[[
-[COMPOUNDS]
-COMPOUND_TARGET_MATERIAL=RSS_T1
-SOFT_COMPOUND=1
-MEDIUM_COMPOUND=2
-HARD_COMPOUND=3
-INTER_COMPOUND=5
-WET_COMPOUND=6
-SOFT_COMPOUND_TEXTURE=C4
-MEDIUM_COMPOUND_TEXTURE=C3
-HARD_COMPOUND_TEXTURE=C2
-INTER_COMPOUND_TEXTURE=Inter
-WET_COMPOUND_TEXTURE=Wet
-	]]
-	)
-end
-
-local compoundKeys = {
-	"COMPOUND_TARGET_MATERIAL",
-	"SOFT_COMPOUND",
-	"MEDIUM_COMPOUND",
-	"HARD_COMPOUND",
-	"INTER_COMPOUND",
-	"WET_COMPOUND ",
-	"SOFT_COMPOUND_TEXTURE ",
-	"MEDIUM_COMPOUND_TEXTURE",
-	"HARD_COMPOUND_TEXTURE",
-	"INTER_COMPOUND_TEXTURE",
-	"WET_COMPOUND_TEXTURE",
-}
-
-local trackCompoundKeys = {
-	"SOFT_COMPOUND",
-	"MEDIUM_COMPOUND",
-	"HARD_COMPOUND",
-}
-
-local function compoundsTab()
-	ui.tabItem("COMPOUNDS", ui.TabItemFlags.None, function()
-		if sim.raceSessionType == 3 then
-			if not sim.isInMainMenu or sim.isSessionStarted then
-				ui.newLine(1)
-
-				ui.text("Can only edit COMPOUND configs while\nin the setup menu before a race session has started.")
-				return
-			end
-		end
-
-		ui.pushFont(ui.Font.Small)
-
-		ui.newLine(1)
-
-		ui.header("CONFIG CAR: ")
-
-		ui.setNextItemWidth(ui.windowWidth() - 75)
-
-		local changed = false
-		ui.combo("##carIDs", selectedCarID, ui.ComboFlags.None, function()
-			for i = 1, #uniqueCarIDs do
-				if ui.selectable(uniqueCarIDs[i]) then
-					selectedCarID, changed = uniqueCarIDs[i], true
-				end
-			end
-		end)
-		if changed then
-			updateCarConfig()
-		end
-
-		ui.newLine(1)
-		ui.popFont()
-		ui.header("TRACK SPECIFIC COMPOUNDS")
-		ui.pushFont(ui.Font.Small)
-
-		ui.newLine(1)
-
-		for i = 1, #trackCompoundKeys do
-			local key = trackCompoundKeys[i]
-			local prefix = ""
-			ui.text(prefix .. key:gsub("_", " ") .. ":")
-			ui.sameLine(190)
-			ui.setNextItemWidth(206)
-
-			local value, changed = ui.inputText(
-				"##track" .. key .. "label",
-				selectedCarConfigINI:get(ac.getTrackID(), key, 0),
-				ui.InputTextFlags.None
-			)
-			if changed then
-				selectedCarConfigINI:setAndSave(ac.getTrackID(), key, value, false)
-				for i = 0, #DRIVERS do
-					DRIVERS[i]:updateTyreCompoundConfig()
-					DRIVERS[i]:setAITyreCompound()
-				end
-			end
-		end
-		ui.popFont()
-		ui.newLine(1)
-
-		ui.header("COMPOUND SETTINGS")
-		ui.pushFont(ui.Font.Small)
-		ui.newLine(1)
-
-		for i = 1, #compoundKeys do
-			local key = compoundKeys[i]
-			local prefix = ""
-			if key == "SOFT_COMPOUND" or key == "MEDIUM_COMPOUND" or key == "HARD_COMPOUND" then
-				prefix = "DEFAULT "
-			end
-			ui.text(prefix .. key:gsub("_", " ") .. ":")
-			ui.sameLine(190)
-			ui.setNextItemWidth(206)
-
-			local value, changed =
-				ui.inputText("##" .. key .. "label", selectedCarConfig.data.COMPOUNDS[key], ui.InputTextFlags.None)
-			if changed then
-				selectedCarConfig:set("COMPOUNDS", key, value, false)
-				for i = 0, #DRIVERS do
-					DRIVERS[i]:updateTyreCompoundConfig()
-					DRIVERS[i]:setAITyreCompound()
-				end
-			end
-		end
-		ui.newLine(1)
-
-		ui.popFont()
-	end)
-end
-
 local function driverTab()
 	ui.tabItem("DRIVER", ui.TabItemFlags.None, function()
+		ui.newLine(1)
+
 		ui.header("FUEL")
 		controls.slider(
 			RARE_CONFIG,
@@ -816,7 +994,9 @@ local function driverTab()
 			"Enable or disable refueling driver's car's fuel tank with enough fuel for the whole race, given the capacity is high enough",
 			function(v)
 				if v == 1 then
-					DRIVERS[0]:setFuelTankRace()
+					if sim.raceSessionType == ac.SessionType.Race then
+						DRIVERS[0]:setFuelTankRace()
+					end
 				end
 				return math.round(v, 0)
 			end
@@ -824,8 +1004,26 @@ local function driverTab()
 	end)
 end
 
-function settingsMenu(sim)
+function settingsMenu()
 	local rareEnable = ac.isWindowOpen("rare")
+
+	if rareEnable and sim.sessionsCount > 1 and ac.getPatchVersionCode() == 2501 then
+		ui.newLine(3)
+
+		ui.pushFont(ui.Font.Title)
+		ui.textAligned(SCRIPT_NAME, vec2(0.5, 0.5), vec2(ui.availableSpaceX(), 34))
+		ui.popFont()
+		ui.newLine(3)
+
+		ui.text(
+			"CSP "
+				.. ac.getPatchVersion()
+				.. " "
+				.. ac.getPatchVersionCode()
+				.. " breaks RARE's race weekend usage.\nPlease downgrade to CSP 0.1.80-preview218 2363 to be on a \nstable CSP version."
+		)
+		return
+	end
 
 	if sim.isInMainMenu then
 		ui.newLine(3)
@@ -834,46 +1032,55 @@ function settingsMenu(sim)
 		ui.textAligned(SCRIPT_NAME, vec2(0.5, 0.5), vec2(ui.availableSpaceX(), 34))
 		ui.popFont()
 
-		ui.sameLine(0, 0)
-		ui.drawRectFilled(
-			vec2(380, 30),
-			vec2(420, 60),
-			(rareEnable and injected) and rgbm(0, 1, 0, 0.5) or rgbm(1, 0, 0, 0.5)
-		)
+		if not sim.isOnlineRace then
+			ui.sameLine(0, 0)
+			ui.drawRectFilled(
+				vec2(380, 30),
+				vec2(420, 60),
+				(rareEnable and injected) and rgbm(0, 1, 0, 0.5) or rgbm(1, 0, 0, 0.5)
+			)
 
-		ui.sameLine(380, 0)
-		ui.setCursor(vec2(380, 30))
+			ui.sameLine(380, 0)
+			ui.setCursor(vec2(380, 30))
 
-		local buttonLabel = (rareEnable and injected) and "ON" or "OFF"
-		if ui.button(buttonLabel, vec2(40, 30), ui.ButtonFlags.None) then
-			if injected then
-				ac.setWindowOpen("rare", not ac.isWindowOpen("rare"))
-			else
-				inject.injectRare()
+			local buttonLabel = (rareEnable and injected) and "ON" or "OFF"
+			if ui.button(buttonLabel, vec2(40, 30), ui.ButtonFlags.None) then
+				if injected then
+					ac.setWindowOpen("rare", not ac.isWindowOpen("rare"))
+				else
+					inject.injectRare()
+				end
 			end
-		end
 
-		if ui.itemHovered() then
-			if not physics.allowed() then
-				ui.setTooltip("Inject " .. SCRIPT_SHORT_NAME .. " App")
-			else
-				ui.setTooltip("Enable or Disable " .. SCRIPT_SHORT_NAME .. " App")
+			if ui.itemHovered() then
+				if not physics.allowed() then
+					ui.setTooltip("Inject " .. SCRIPT_SHORT_NAME .. " App")
+				else
+					ui.setTooltip("Enable or Disable " .. SCRIPT_SHORT_NAME .. " App")
+				end
 			end
+		else
+			ui.newLine()
 		end
 	end
 
-	if ac.isWindowOpen("rare") and INITIALIZED and injected then
-		ui.newLine(3)
-	else
-		ui.newLine(0)
-		return
+	if not sim.isOnlineRace then
+		if ac.isWindowOpen("rare") and INITIALIZED and injected then
+			ui.newLine(3)
+		else
+			ui.newLine(0)
+			return
+		end
 	end
 
 	ui.tabBar("settingstabbar", ui.TabBarFlags.None, function()
-		rulesTab()
-		driverTab()
-		compoundsTab()
-		aiTab()
+		if not sim.isOnlineRace then
+			rulesTab()
+			driverTab()
+			aiTab()
+			compoundsTab()
+		end
+
 		audioTab()
 		uiTab()
 	end)
