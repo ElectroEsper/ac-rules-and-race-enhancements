@@ -384,6 +384,7 @@ function Driver:update(dt)
 	end
 
 	if not sim.isSessionStarted and not self.aiInitialCompoundApplied then
+		self.isSafetyCarAllowed = false
 		self:setAITyreCompound()
 		self.aiInitialCompoundApplied = true
 	elseif sim.isSessionStarted and self.aiInitialCompoundApplied then

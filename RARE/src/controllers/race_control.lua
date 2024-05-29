@@ -178,6 +178,8 @@ local function raceSession(lastUpdate, racecontrol, config, driver)
 
 	if sc.allowed() then
 		driver.isSafetyCarAllowed = true
+	else
+		driver.isSafetyCarAllowed = false
 	end
 
 	if driver.crashed then

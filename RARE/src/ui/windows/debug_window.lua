@@ -6,6 +6,11 @@ local space = 200
 local function aiTreeNode(driver)
 	ui.treeNode("[AI]", ui.TreeNodeFlags.DefaultOpen and ui.TreeNodeFlags.Framed, function()
 		ui.inLineBulletText(
+			"Is Safety Car?",
+			driver.isSafetyCar,
+			space
+		)
+		ui.inLineBulletText(
 			"Throttle Limit",
 			"["
 				.. math.round(driver.aiThrottleLimitBase * 100, 2)
