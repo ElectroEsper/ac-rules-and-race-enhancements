@@ -221,6 +221,8 @@ local function update(sim, drivers)
 	end
 
 	if not sim.isSessionStarted then
+
+		sc.initToggle(false)
 		drsActivationLap = config.RULES.DRS_ACTIVATION_LAP
 		drsEnabledLap = drsEnabledLap
 	end

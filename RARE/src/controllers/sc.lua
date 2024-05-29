@@ -56,6 +56,9 @@ local PACK = {
 	RESTART = 4
 }
 
+function sc.initToggle(bool)
+	SAFETYCAR_INITIALIZED = bool
+end
 local STATUS_SC = SC.IDLE
 local STATUS_P = PACK.RACING
 
@@ -190,8 +193,10 @@ function sc.allowedUpdate()
 	if SAFETYCAR_FIRSTTIMECHECK == -1 then
 		SAFETYCAR_FIRSTTIMECHECK = ui.time()
 		SAFETYCAR_LASTTIMECHECK = SAFETYCAR_FIRSTTIMECHECK
+		ac.log(SAFETYCAR_LASTTIMECHECK)
 	else
-		SAFETYCAR_LASTTIMECHECK = ui.time() - SAFETYCAR_LASTTIMECHECK	
+		SAFETYCAR_LASTTIMECHECK = ui.time() - SAFETYCAR_LASTTIMECHECK
+		---ac.log(SAFETYCAR_LASTTIMECHECK)
 	end
 end
 
@@ -298,8 +303,10 @@ function sc.controller(rc,driver)
 				if STATUS_SC == SC.START then
 					--setPaceDynamic(driver, 0, 1000, 1.0, 5, 7)
 					physics.setAICaution(driver.index,16)
+					driver.aiCaution = 16
+					physics.setAIPitStopRequest(driver.index, true)
 					if driver.car.splinePosition >= 0.90 then
-						setFuel(driver, 0.1)
+						--setFuel(driver, 0.1)
 						sc.setStatusSC(SC.IDLE)
 					end
 				elseif STATUS_SC == SC.DEPLOYING then
@@ -338,17 +345,20 @@ function sc.controller(rc,driver)
 					--physics.setAICaution(driver.index,1)
 					if driver.car.racePosition ~= 1 then
 						if DRIVERS[driver.carAhead].isSafetyCar then
-							physics.setAICaution(driver.index,0)
-							--setPaceFixed(driver,SAFETYCAR_CATCHINGSPEED,0.5)
+							physics.setAICaution(driver.index,3)
+							driver.aiCaution = 3
+							---setPaceFixed(driver,SAFETYCAR_CATCHINGSPEED,0.5)
 							--physics.setAISplineOffset(driver.index,0.0,false)
 						else
 							physics.setAICaution(driver.index,5)
+							driver.aiCaution = 5
 							--setPaceDynamic(driver,SAFETYCAR_SPEED, SAFETYCAR_CATCHINGSPEED,0.5,0.25,1)
 							--physics.setAISplineOffset(driver.index,0.0,false)
 						end
 					else
 						if DRIVERS[driver.carAhead].isSafetyCar then
 							physics.setAICaution(driver.index,5)
+							driver.aiCaution = 5
 							if driver.carAheadDelta < 20 then
 								sc.setStatusPack(PACK.DUCKLING)
 								sc.setStatusSC(SC.RUNNING)
@@ -361,6 +371,7 @@ function sc.controller(rc,driver)
 				elseif STATUS_P == PACK.DUCKLING then
 					if driver.car.racePosition == 1 then
 						physics.setAICaution(driver.index,5)
+						driver.aiCaution = 5
 						--setPaceDynamic(driver,SAFETYCAR_SPEED, SAFETYCAR_CATCHINGSPEED,0.5,0.5,5)
 						--physics.setAISplineOffset(driver.index,0.0,false)
 						--[[
@@ -377,6 +388,7 @@ function sc.controller(rc,driver)
 						end
 					else
 						physics.setAICaution(driver.index,5)
+						driver.aiCaution = 5
 						--setPaceDynamic(driver,SAFETYCAR_SPEED, SAFETYCAR_CATCHINGSPEED,0.5,0.5,5)
 						--physics.setAISplineOffset(driver.index,0.0,false)
 						--[[
@@ -397,6 +409,7 @@ function sc.controller(rc,driver)
 							end
 						else
 							physics.setAICaution(driver.index,2)
+							driver.aiCaution = 2
 							--setPaceDynamic(driver,0, SAFETYCAR_SPEED,0.5,0.1,0.25)
 							--physics.setAISplineOffset(driver.index,0.0,false)
 						end
@@ -406,14 +419,17 @@ function sc.controller(rc,driver)
 								setPaceFixed(driver,math.random(80,SAFETYCAR_SPEED),0.75)
 							else
 								physics.setAICaution(driver.index,5)
+								driver.aiCaution = 5
 								setPaceFixed(driver,SAFETYCAR_SPEED,0.75)
 							end
 						else
 							physics.setAICaution(driver.index,5)
+							driver.aiCaution = 5
 						end
 					end
 				elseif STATUS_P == PACK.RACING then
 					physics.setAICaution(driver.index,1)
+					driver.aiCaution = 1
 					setPaceFixed(driver, 1000, 1.0)
 					--sc.crashedReset()
 				end
