@@ -106,8 +106,13 @@ local function qualifySession(racecontrol, config, driver)
 	local raceRules = config.RULES
 	local aiRules = config.AI
 
-	if driver.car.isAIControlled then
-		ai.qualifying(racecontrol, aiRules, driver)
+	if driver.isSafetyCar then
+		--setPaceFixed(driver,0,0.0)
+		physics.setCarFuel(driver.index,0)
+	else
+		if driver.car.isAIControlled then
+			ai.qualifying(racecontrol, aiRules, driver)
+		end
 	end
 end
 
@@ -118,8 +123,13 @@ local function practiceSession(racecontrol, config, driver)
 	local raceRules = config.RULES
 	local aiRules = config.AI
 
-	if driver.car.isAIControlled then
-		ai.practice(racecontrol, driver)
+	if driver.isSafetyCar then
+		--setPaceFixed(driver,0,0.0)
+		physics.setCarFuel(driver.index, 0)
+	else
+		if driver.car.isAIControlled then
+			ai.practice(racecontrol, driver)
+		end
 	end
 end
 
@@ -231,11 +241,13 @@ local function update(sim, drivers)
 	if sim.isSessionStarted and ac.SessionType.Race and not sc.allowed() then
 		--local lastTimeCheck = sc.SAFETYCAR_LASTTIMECHECK
 		--local allowedAfter = sc.SAFETYCAR_ALLOWEDAFTER
-		if sc.allowedCheck() then -- if session time started longer than cooldown period
+		if sc.allowedCheck() then -- if session time started longer than cooldown period and is race
 			sc.allowedToggle(true)
 		else
 			sc.allowedUpdate()
 		end
+	elseif not ac.SessionType.Race then
+		sc.allowedToggle(false)	
 	end
 	if sc.allowed() then
 		--ac.log("Updating laps")
