@@ -11,6 +11,11 @@ local function aiTreeNode(driver)
 			space
 		)
 		ui.inLineBulletText(
+			"Safety Car Allowed?",
+			driver.isSafetyCarAllowed,
+			space
+		)
+		ui.inLineBulletText(
 			"Throttle Limit",
 			"["
 				.. math.round(driver.aiThrottleLimitBase * 100, 2)
@@ -245,6 +250,8 @@ local function sessionTreeNode(sim, rc, driver)
 				string.format("%02d:%02d:%02d", sim.timeHours, sim.timeMinutes, sim.timeSeconds),
 				space
 			)
+			--ui.inLineBulletText("SC Initialized", ui.upperBool(sc.getStatusInit()), space)
+			--ui.inLineBulletText("SC First Time Check", ui.upperBool(sc.getFirstTimeCheck()), space)
 			ui.inLineBulletText("SC Allowed", ui.upperBool(sc.allowed()), space)
 			ui.inLineBulletText("SC Status", sc.getStatusSC(), space)
 			ui.inLineBulletText("PACK Status", sc.getStatusPack(), space)

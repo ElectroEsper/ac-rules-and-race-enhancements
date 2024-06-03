@@ -400,5 +400,7 @@ function Driver:update(dt)
 		else
 			self.crashed = false
 		end
+	else
+		self.crashed = false
 	end
 end

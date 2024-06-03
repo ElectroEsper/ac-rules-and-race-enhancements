@@ -233,8 +233,6 @@ local function update(sim, drivers)
 	end
 
 	if not sim.isSessionStarted then
-
-		sc.initToggle(false)
 		drsActivationLap = config.RULES.DRS_ACTIVATION_LAP
 		drsEnabledLap = drsEnabledLap
 	end
@@ -268,6 +266,8 @@ local function update(sim, drivers)
 				physics.overrideRacingFlag(ac.FlagType.None)
 			end
 		end
+	else
+		sc.crashedReset()
 	end
 
 	return readOnly({
@@ -288,6 +288,9 @@ local racecontrol = nil
 function rc.getRaceControl(dt, sim)
 	local drivers = DRIVERS
 	local lastUpdate = racecontrol
+
+	
+
 	racecontrol = update(sim, drivers)
 
 	for i = 0, #drivers do

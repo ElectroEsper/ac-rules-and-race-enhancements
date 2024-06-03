@@ -1,10 +1,12 @@
 local sc = {}
+local sim = ac.getSim()
 require("src/helpers/helper")
 -- handles the safety car protocol
 local TRACKLENGTH = -1
 
 local SAFETYCAR_ALLOWED = false
 local SAFETYCAR_ALLOWEDAFTER = 3 -- seconds
+local SAFETYCAR_ALLOWEDCOUNTDOWN = false
 local SAFETYCAR_LASTTIMECHECK = 0
 local SAFETYCAR_FIRSTTIMECHECK = -1
 
@@ -59,6 +61,7 @@ local PACK = {
 function sc.initToggle(bool)
 	SAFETYCAR_INITIALIZED = bool
 end
+
 local STATUS_SC = SC.START
 local STATUS_P = PACK.RACING
 
@@ -72,6 +75,14 @@ end
 
 local function checkRestartTarget(currentSpline)
 	return currentSpline >= PACK_RESTART_TARGETSPLINE
+end
+
+function sc.getFirstTimeCheck()
+	return SAFETYCAR_FIRSTTIMECHECK
+end
+
+function sc.getStatusInit()
+	return SAFETYCAR_INITIALIZED
 end
 
 function sc.setStatusSC(enum)
@@ -190,13 +201,27 @@ function sc.allowedCheck()
 end
 
 function sc.allowedUpdate()
-	if SAFETYCAR_FIRSTTIMECHECK == -1 then
-		SAFETYCAR_FIRSTTIMECHECK = ui.time()
-		SAFETYCAR_LASTTIMECHECK = SAFETYCAR_FIRSTTIMECHECK
-		ac.log(SAFETYCAR_LASTTIMECHECK)
-	else
-		SAFETYCAR_LASTTIMECHECK = ui.time() - SAFETYCAR_LASTTIMECHECK
-		---ac.log(SAFETYCAR_LASTTIMECHECK)
+	-- If session is not started, and the FirstTimeCheck is not reset, then reset the bastard!
+	if sim.timeToSessionStart > 0 then
+		SAFETYCAR_FIRSTTIMECHECK = -1
+		ac.log("[## SAFETY CAR ##] Not started and not -1")
+	end
+	if not sim.isSessionStarted and not SAFETYCAR_FIRSTTIMECHECK == -1 then
+		SAFETYCAR_FIRSTTIMECHECK = -1
+		ac.log("[## SAFETY CAR ##] Not started and not -1")
+	end
+
+	-- If session is started...
+	if sim.isSessionStarted then
+		-- If firsttimecheck not made...
+		if SAFETYCAR_FIRSTTIMECHECK == -1 then
+			SAFETYCAR_FIRSTTIMECHECK = ui.time()
+			SAFETYCAR_LASTTIMECHECK = SAFETYCAR_FIRSTTIMECHECK
+			ac.log("[## SAFETY CAR ##] First time check is go!")
+		-- else do you thing...
+		else
+			SAFETYCAR_LASTTIMECHECK = ui.time() - SAFETYCAR_LASTTIMECHECK
+		end
 	end
 end
 
@@ -266,7 +291,7 @@ local function setPaceDynamic(driver,minSpeed, maxSpeed,maxThrottle,minGap, maxG
 	local gapAhead = driver.carAheadDelta - minGap
 	local refGap = maxGap - minGap
 	physics.setAITopSpeed(driver.index, math.lerp(minSpeed,maxSpeed,gapAhead/refGap))
-	ac.log( (gapAhead/refGap) * refGap  .. " / " .. refGap)
+	--ac.log( (gapAhead/refGap) * refGap  .. " / " .. refGap)
 	physics.setAIThrottleLimit(driver.index, math.lerp(0,maxThrottle,gapAhead/refGap))
 end
 
@@ -275,7 +300,11 @@ local function setFuel(driver, amount)
 end
 
 function sc.controller(rc,driver)
+	if SAFETYCAR_ALLOWED and not sim.isSessionStarted then
+		sc.initToggle(false)
+	end
 	if not SAFETYCAR_INITIALIZED then
+		ac.log("Initializing SC")
 		if ac.getCarID(driver.index) == SAFETYCAR_CAR then
 			TRACKLENGTH = rc.sim.trackLengthM
 			driver.isSafetyCar = true
@@ -285,6 +314,8 @@ function sc.controller(rc,driver)
 			SAFETYCAR_INITIALIZED = true
 			SAFETYCAR_ALLOWED = false
 			SAFETYCAR_DEPLOYED = false
+			SAFETYCAR_FIRSTTIMECHECK = -1
+			SAFETYCAR_LASTTIMECHECK = 0
 			sc.setStatusSC(SC.START)
 			sc.setStatusPack(PACK.RACING)	
 		end
