@@ -329,10 +329,12 @@ function sc.controller(rc,driver)
 					physics.setAIPitStopRequest(driver.index, true)
 					if driver.car.isInPit then
 						--setFuel(driver, 0.1)
+						physics.setAIPitStopRequest(driver.index, false)
 						sc.setStatusSC(SC.IDLE)
 					end
 				elseif STATUS_SC == SC.DEPLOYING then
 					if STATUS_P ~= PACK.CATCHING then
+						physics.setAIPitStopRequest(driver.index, false)
 						sc.setStatusPack(PACK.CATCHING)
 					end
 					setFuel(driver, 50)
